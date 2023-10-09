@@ -11,7 +11,7 @@ internal class BenchmarkClass
 
 
     private struct ResultsData                                          //created a structure to store data results 
-    {
+    {   public string DateRan { get; set; }
         public string Operations { get; set; }
         public int ThreadCount { get; set; }
         public double Average { get; set; }
@@ -21,6 +21,7 @@ internal class BenchmarkClass
     {
         public string Operations { get; set; }
         public int ThreadCount { get; set; }
+        public int threadIDNumber { get; set; }
         public double OpertionCount { get; set; }
 
     }
@@ -65,7 +66,7 @@ internal class BenchmarkClass
                 double opCount = 0;                                //keep count of operations completed by thread
                 for (int j = 0; j < threads.Length; j++)            //running the tests on each thread
                 {
-                    int threadRunNum = j;                                //keep track of the thread run number 
+                    int threadIDNum = j+1;                                //keep track of the thread run number 
 
                     threads[j] = new Thread(() =>                       //creating the thread
                     {
@@ -73,18 +74,18 @@ internal class BenchmarkClass
 
 
                         opCount += operations;                        //record the total number of operations completed from all threads 
-
+                        StoreRawData(rawData, operation, numThreads, threadIDNum, operations);//gettign the raw data for each individual thread 
                     });
-                    threads[j].Start();         //start threas
+                    threads[j].Start();         //start threads
 
                 }
 
                 foreach (Thread thread in threads)              //run through the threads and join them so that each one is completed. 
-                {
+                {   
                     thread.Join();
                 }
                 Console.WriteLine($"Testing {operation} using {numThreads} threads has completed!");
-                StoreRawData(rawData, operation, numThreads, opCount);
+                
                 testingResults[i] = opCount;            //add the results to the results arrary 
 
             }
@@ -190,7 +191,7 @@ internal class BenchmarkClass
                 using StreamWriter writefile = new(filePath);
                 foreach (ResultsData data in mylist)
                 {
-                    string value = $"Operation: {data.Operations} '\n' Thread Count: {data.ThreadCount} '\n' Average: {data.Average} '\n' Standard Deviation: {data.StandardDeviation} '\n' '\n'";
+                    string value = $"Date: {data.DateRan}  Operation: {data.Operations}  Thread Count: {data.ThreadCount}  Average: {data.Average}  Standard Deviation: {data.StandardDeviation}  '\n'";
                     writefile.WriteLine(value);
 
                 }
@@ -205,33 +206,39 @@ internal class BenchmarkClass
 
     private static void sendRawDatasToFile(List<RawData> mylist)
     {
-            string filePath = $"rawdata.txt";
-           
-                using StreamWriter writefile = new(filePath, true);
-                foreach (RawData data in mylist)
-                {
-                    string value = $"Operation: {data.Operations} '\n' Thread Count: {data.ThreadCount} '\n' Operations Count : {data.OpertionCount} '\n' '\n'";
-                    writefile.WriteLine(value);
+        int num = 1;
+        string filePath = $"rawdata{num}.txt";
+        while (!File.Exists(filePath))
+        {
+            num++;
+            filePath = $"rawdata{num}.txt";
+        }
+        using StreamWriter writefile = new(filePath);
+            foreach (RawData data in mylist)
+            {
+                string value = $"Operation: {data.Operations} Thread Count: {data.ThreadCount} Thread ID Number: {data.threadIDNumber}  Operations Count : {data.OpertionCount} '\n' ";
+                writefile.WriteLine(value);
 
-                }
-          
-    }
-    private static void StoreData(List<ResultsData> myList, string testType, double[] avg, double[] std)
+            }
+
+        }
+    
+    private static void StoreData(List<ResultsData> myList, string testType, double[] avg, double[] std, string dateRan)
     {
         int[] threads = { 1, 2, 4, 8 };
         for (int i = 0; i < threads.Length; i++)
         {
             
-                ResultsData result = new() { Operations = testType, ThreadCount = threads[i], Average = avg[i], StandardDeviation = std[i] };
+                ResultsData result = new() { DateRan = dateRan, Operations = testType, ThreadCount = threads[i], Average = avg[i], StandardDeviation = std[i] };
                 myList.Add(result);
             
         }
     }
 
-    private static void StoreRawData(List<RawData> myList, string testType, int thread, double operationCount)
+    private static void StoreRawData(List<RawData> myList, string testType, int thread, int threadID, double operationCount)
     {
 
-        RawData result = new() { Operations = testType, ThreadCount = thread, OpertionCount = operationCount };
+        RawData result = new() { Operations = testType, ThreadCount = thread,threadIDNumber=threadID, OpertionCount = operationCount };
         myList.Add(result);
 
     }
@@ -240,12 +247,12 @@ internal class BenchmarkClass
     {
         
             try
-            {
-                Process.Start(filePath);
+            {   
+                Process.Start("notepad.exe",filePath);
 
                 }
             catch ( Exception e){
-                Console.WriteLine($"An error occured while trying to open {filePath}");
+                Console.WriteLine($"Error occured while trying to open {filePath} reference Error Message: {e.Message} ");
             }
             }
         
@@ -254,7 +261,7 @@ internal class BenchmarkClass
     private static void Main()
     {
         DateTime runTimeofTest = DateTime.Now;
-        _ = runTimeofTest.ToString("MM_dd_yyyy_HH_mm");
+        string dateRan = runTimeofTest.ToString("MM_dd_yyyy_HH_mm");
         List<ResultsData> results = new();
 
 
@@ -280,11 +287,11 @@ internal class BenchmarkClass
         double[] iopsStdDev = CalculateStdDev(resultsI, iopsAvgs);
 
        
-        StoreData(results, "FLOPS", flopsAvgs, flopsStdDev);
-        StoreData(results, "Iops", iopsAvgs, iopsStdDev);
+        StoreData(results, "FLOPS", flopsAvgs, flopsStdDev, dateRan);
+        StoreData(results, "Iops", iopsAvgs, iopsStdDev, dateRan);
 
         string filePath = sendResultsToFile(results);
-        openResultsFile(filePath);
+        //openResultsFile(filePath);
 
     }
 }
