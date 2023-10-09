@@ -1,107 +1,298 @@
-﻿//trying project writting in c# 
+﻿//Rewrote project writting it in C#
 // CSC563 Project #1 : Benchmark Application by Brian Pagoni 
+// This project was initally coded in python, howver after finding many inconsitences with the way python interacts with threading, I switched to C#. 
 
-using System;
-using System.Threading;
 using System.Diagnostics;
-class Threads
+
+internal class BenchmarkClass
 {
-    
-    static void createThreads(int numThreads, string operation)
-    {   for (int i = 1; i < numThreads; i++)
-        {
-            ParameterizedThreadStart parameterizedThreadStart = new ParameterizedThreadStart(useThreads);
-            Thread thread = new Thread(parameterizedThreadStart);
-            thread.Start(operation);
-        }
+    private const int setTime = 30_000;                                      //this project will be using a set duration of time of 30 seconds(30,000 milliseconds) 
+
+
+
+    private struct ResultsData                                          //created a structure to store data results 
+    {
+        public string Operations { get; set; }
+        public int ThreadCount { get; set; }
+        public double Average { get; set; }
+        public double StandardDeviation { get; set; }
     }
-    static void useThreads(object operation)
-    { string operationName = (string)operation;
-        if (operationName == "")
-            {
-                throw new ArgumentNullException(nameof(operation));
-            }
-        if (operationName == "setDuration")
-            {
-                
-            }
+    private struct RawData                                          //created a structure to store raw data  
+    {
+        public string Operations { get; set; }
+        public int ThreadCount { get; set; }
+        public double OpertionCount { get; set; }
+
+    }
+
+    private static double[] UseThreads(string operation)            //function to create and use threads 
+    {
+        List<RawData> rawData = new();
+        Func<double>? useOperation = null;                 // creating a variable to hold the operation types. 
+        int[] myThreads = { 1, 2, 4, 8 };                   //array of threads to be used 
+
+        double[] testingResults = new double[4];            //arrary to hold results 
+
+        if (operation == "")                                // error handling 
+        {
+            throw new ArgumentNullException(nameof(operation));
+        }
+
         else
-            {
-                
-        } 
-    }
-
-    static void doCalculations(int testType)
-    {
-        double[,] resultsTime = new double[2, 3]; //making a 2d array of results, the first element is for FLOPS operations, the second element is for IOPS operations 
-        double[,] resultsOps = new double[2, 3]; //making a 2d array of results, the first element is for FLOPS operations, the second element is for IOPS operations 
-
-       for (int i = 0; i < 3; i++)
         {
-            switch (testType) { 
-                case 0:
-                        double flopsTime = GetTime(() => 1.0f + 2.0f);
-                        resultsTime[0, i] = flopsTime;
-                        double iopsTime = GetTime(() => 1 + 2);
-                        resultsTime[1, i] = iopsTime;
-                    break;
-                case 1: { 
-                
-                    
-                        double flopsOps = GetOps(() => 1.0f + 2.0f);
-                        resultsOps[0, i]= flopsOps;
-                        double intOps = GetOps(() => 1 + 2);
-                        resultsOps[1,i] = intOps;
+
+            switch (operation)                                  //switch case to determine operation to use 
+            {
+                case "FLOPS":
+                    {
+                        useOperation = () => 1.0f + 2.0f;       //FLOPS
                         break;
-                               }
-
-            } 
+                    }
+                case "IOPS":
+                    {
+                        useOperation = () => 1 + 2;             //IOPS
+                        break;
+                    }
             }
-    }
-    static double GetTime(Func<double> opType)
-    {
-        int numOps = 0;
-        int setTime = 1_000_000;   //using milliseconds which will be 1000 seconds 
-       
-            Stopwatch sw = Stopwatch.StartNew();
-            sw.Start();
-            while (sw.ElapsedMilliseconds < setTime)
+
+
+            for (int i = 0; i < myThreads.Length; i++)          //run through the arrary of threads
             {
-            double operations = opType();
-                numOps++;
+
+                int numThreads = myThreads[i];                  //get value of threads
+
+                Thread[] threads = new Thread[numThreads];        //creating an array of thread objects
+                double opCount = 0;                                //keep count of operations completed by thread
+                for (int j = 0; j < threads.Length; j++)            //running the tests on each thread
+                {
+                    int threadRunNum = j;                                //keep track of the thread run number 
+
+                    threads[j] = new Thread(() =>                       //creating the thread
+                    {
+                        double operations = GetTime(useOperation);      //send operation to gettime method
+
+
+                        opCount += operations;                        //record the total number of operations completed from all threads 
+
+                    });
+                    threads[j].Start();         //start threas
+
+                }
+
+                foreach (Thread thread in threads)              //run through the threads and join them so that each one is completed. 
+                {
+                    thread.Join();
+                }
+                Console.WriteLine($"Testing {operation} using {numThreads} threads has completed!");
+                StoreRawData(rawData, operation, numThreads, opCount);
+                testingResults[i] = opCount;            //add the results to the results arrary 
+
             }
-            sw.Stop();
+            sendRawDatasToFile(rawData);//storing raw data to file 
+            return testingResults;              //return the results.
 
-            double results = (double)numOps / (setTime);
-
-            return results;
 
         }
-    static double GetOps(Func<double> opType)
+    }
+
+    private static double GetTime(Func<double> opType)                 //testType willl be 0 setDuration of time, 1 will be set number of Operations 
+
     {
-        int numOps = 0;
-        int setOps = 1_000_000;   //using set number of Ops
+        int numOps = 0;                             //recording number of operations completed. 
 
-        Stopwatch sw = Stopwatch.StartNew();
+
+        Stopwatch sw = Stopwatch.StartNew();        //using stopwatch to keep track of time 
+
         sw.Start();
-        while (numOps<setOps)
+        while (true)
         {
-            double operations = opType();
+            _ = opType();                           // run operation 
             numOps++;
+            if (sw.ElapsedMilliseconds >= setTime)  //when time has passed the set duration end 
+            {
+                sw.Stop();
+                break;
+            }
         }
-        sw.Stop();
 
-        double results = (double)numOps / (sw.ElapsedMilliseconds);
 
-        return results;
+        double results = (double)numOps / setTime; //geting the number of operations per second
+
+        return results;                            //return results 
 
     }
 
-}
+    private static double[] CalculateAvg(double[,] results)        //method to get average 
+    {
+        int rows = results.GetLength(0);
+        int cols = results.GetLength(1);
+        double[] avgs = new double[cols]; //average of each column 
+
+
+        for (int i = 0; i < cols; i++)
+        {
+            double sum = 0;
+            double[] colValues = new double[cols];
+            for (int j = 0; j < rows; j++)
+            {
+
+                sum += results[j, i];
+
+                colValues[j] = results[j, i];
+            }
+            avgs[i] = (colValues.Average());
+
+        }
+        return avgs;                        //return average 
+    }
+
+    private static double[] CalculateStdDev(double[,] results, double[] avg)    //method to get standard deviation 
+    {
+        int rows = results.GetLength(0);
+        int cols = results.GetLength(1);
+        double[] stdDev = new double[cols]; //array to hold standard deviation for each col
+
+
+        for (int i = 0; i < cols; i++)          //for each col in each row get standard divation 
+        {
+            double sumDiff = 0;
+            for (int j = 0; j < rows; j++)
+            {
+                double diff = results[j, i] - avg[i];           //get the difference between element and average for the row. 
+                sumDiff += diff * diff;                         //get the sum of differneces squared 
+            }
+            double deviation = sumDiff / rows;                  //
+            stdDev[i] = (Math.Sqrt(deviation));
+
+        }
+        return stdDev;          //return results 
+    }
+
+    private static string sendResultsToFile(List<ResultsData> mylist)
+    {
+        int testNum = 1;
+        string filePath = "";
+        bool createdFile = false;
+         
+        while (createdFile == false)
+        {
+            filePath = $"Results #{testNum}.txt";//saving results to a file that has the number for the test 
+            if (File.Exists(filePath))
+            {
+                Console.WriteLine($"{filePath} already exists in {Environment.CurrentDirectory}, attempting to add new test results txt file");
+                testNum++;
+
+            }
+
+            else
+            {
+
+                using StreamWriter writefile = new(filePath);
+                foreach (ResultsData data in mylist)
+                {
+                    string value = $"Operation: {data.Operations} '\n' Thread Count: {data.ThreadCount} '\n' Average: {data.Average} '\n' Standard Deviation: {data.StandardDeviation} '\n' '\n'";
+                    writefile.WriteLine(value);
+
+                }
+                Console.WriteLine($"Results sent to file: {filePath} in {Environment.CurrentDirectory}");
+                createdFile = true;
+                break;
+
+            }
+        }
+        return filePath;
+    }
+
+    private static void sendRawDatasToFile(List<RawData> mylist)
+    {
+            string filePath = $"rawdata.txt";
+           
+                using StreamWriter writefile = new(filePath, true);
+                foreach (RawData data in mylist)
+                {
+                    string value = $"Operation: {data.Operations} '\n' Thread Count: {data.ThreadCount} '\n' Operations Count : {data.OpertionCount} '\n' '\n'";
+                    writefile.WriteLine(value);
+
+                }
+          
+    }
+    private static void StoreData(List<ResultsData> myList, string testType, double[] avg, double[] std)
+    {
+        int[] threads = { 1, 2, 4, 8 };
+        for (int i = 0; i < threads.Length; i++)
+        {
+            
+                ResultsData result = new() { Operations = testType, ThreadCount = threads[i], Average = avg[i], StandardDeviation = std[i] };
+                myList.Add(result);
+            
+        }
+    }
+
+    private static void StoreRawData(List<RawData> myList, string testType, int thread, double operationCount)
+    {
+
+        RawData result = new() { Operations = testType, ThreadCount = thread, OpertionCount = operationCount };
+        myList.Add(result);
+
+    }
+
+    private static void openResultsFile(string filePath )
+    {
         
+            try
+            {
+                Process.Start(filePath);
 
-
-
+                }
+            catch ( Exception e){
+                Console.WriteLine($"An error occured while trying to open {filePath}");
+            }
+            }
+        
     
+
+    private static void Main()
+    {
+        DateTime runTimeofTest = DateTime.Now;
+        _ = runTimeofTest.ToString("MM_dd_yyyy_HH_mm");
+        List<ResultsData> results = new();
+
+
+        double[,] resultsF = new double[3, 4];
+        double[,] resultsI = new double[3, 4];
+
+        for (int i = 0; i < 3; i++)
+        {
+            Console.WriteLine("Running Test #" + (i + 1));
+            double[] flops = UseThreads("FLOPS");
+            double[] iops = UseThreads("IOPS");
+            for (int j = 0; j < 4; j++)
+            {
+                resultsF[i, j] = flops[j];
+                resultsI[i, j] = iops[j];
+            }
+        }
+
+        double[] flopsAvgs = CalculateAvg(resultsF);
+        double[] iopsAvgs = CalculateAvg(resultsI);
+
+        double[] flopsStdDev = CalculateStdDev(resultsF, flopsAvgs);
+        double[] iopsStdDev = CalculateStdDev(resultsI, iopsAvgs);
+
+       
+        StoreData(results, "FLOPS", flopsAvgs, flopsStdDev);
+        StoreData(results, "Iops", iopsAvgs, iopsStdDev);
+
+        string filePath = sendResultsToFile(results);
+        openResultsFile(filePath);
+
+    }
+}
+
+//Test results are in text file, need to verify results are within appropraite range. 
+
+
+
+
 
 

@@ -1,0 +1,110 @@
+using System;
+using System.Diagnostics;
+using System.Threading;
+
+internal class BenchmarkApp
+{
+	private const int setTime = 100;
+
+	private const int setOps = 1000;
+
+	private static readonly object lockResults = new object();
+
+	private static double[,,] useThreads(string operation)
+	{
+		string operation2 = operation;
+		if (operation2 == "")
+		{
+			throw new ArgumentNullException("operation");
+		}
+		int[] myThreads = new int[4] { 1, 2, 4, 8 };
+		double[,,] resultsTime = new double[2, 4, 8];
+		double[,,] resultsOps = new double[2, 4, 8];
+		double flops = 0.0;
+		double iops = 0.0;
+		for (int i = 0; i < myThreads.Length; i++)
+		{
+			int numThreads = myThreads[i];
+			double opsPerThread = 1000 / numThreads;
+			Thread[] threads = new Thread[numThreads];
+			int j;
+			for (j = 0; j < threads.Length; j++)
+			{
+				threads[j] = new Thread((ThreadStart)delegate
+				{
+					string text = operation2;
+					string text2 = text;
+					if (!(text2 == "setDuration"))
+					{
+						if (text2 == "setNumOperation")
+						{
+							flops = GetTime(() => 3.0, 1, opsPerThread);
+							AddResults(resultsOps, i, 1, j, flops);
+							iops = GetTime(() => 3.0, 1, opsPerThread);
+							AddResults(resultsOps, i, 1, j, iops);
+						}
+					}
+					else
+					{
+						flops = GetTime(() => 3.0, 0, 0.0);
+						Console.WriteLine("i:" + i + " j: " + j + " flops:" + flops);
+						AddResults(resultsTime, i, 0, j, flops);
+						iops = GetTime(() => 3.0, 0, 0.0);
+						AddResults(resultsTime, i, 0, j, iops);
+					}
+				});
+				threads[j].Start();
+			}
+			Thread[] array = threads;
+			foreach (Thread thread in array)
+			{
+				thread.Join();
+			}
+		}
+		return resultsTime;
+	}
+
+	private static void AddResults(double[,,] results, int numThread, int testType, int testRun, double result)
+	{
+		lock (lockResults)
+		{
+			results[testType, numThread, testRun] = result;
+		}
+	}
+
+	private static double GetTime(Func<double> opType, int testType, double opsPerThread)
+	{
+		int numOps = 0;
+		if (testType != 0 && testType != 1)
+		{
+			throw new ArgumentException("Invalid test type provided");
+		}
+		Stopwatch sw = Stopwatch.StartNew();
+		switch (testType)
+		{
+		case 0:
+			sw.Start();
+			while (sw.ElapsedMilliseconds < 100)
+			{
+				double operations = opType();
+				numOps++;
+			}
+			sw.Stop();
+			break;
+		case 1:
+			sw.Start();
+			for (; (double)numOps < opsPerThread; numOps++)
+			{
+				double operations2 = opType();
+			}
+			sw.Stop();
+			break;
+		}
+		return (double)numOps / (double)(sw.ElapsedMilliseconds / 1000);
+	}
+
+	private static void Main()
+	{
+		double[,,] results = useThreads("setDuration");
+	}
+}
