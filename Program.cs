@@ -8,8 +8,6 @@ internal class BenchmarkClass
 {
     private const int setTime = 30_000;                                      //this project will be using a set duration of time of 30 seconds(30,000 milliseconds) 
 
-
-
     private struct ResultsData                                          //created a structure to store data results 
     {   public string DateRan { get; set; }
         public string Operations { get; set; }
@@ -35,31 +33,28 @@ internal class BenchmarkClass
         double[] testingResults = new double[4];            //arrary to hold results 
 
         if (operation == "")                                // error handling 
-        {
-            throw new ArgumentNullException(nameof(operation));
-        }
+            {
+             throw new ArgumentNullException(nameof(operation));
+             }
 
         else
         {
-
             switch (operation)                                  //switch case to determine operation to use 
-            {
-                case "FLOPS":
-                    {
-                        useOperation = () => 1.0f + 2.0f;       //FLOPS
-                        break;
-                    }
-                case "IOPS":
-                    {
-                        useOperation = () => 1 + 2;             //IOPS
-                        break;
-                    }
-            }
-
+                {
+                    case "FLOPS":
+                        {
+                            useOperation = () => 1.0f + 2.0f;       //FLOPS
+                            break;
+                        }
+                    case "IOPS":
+                        {
+                            useOperation = () => 1 + 2;             //IOPS
+                            break;
+                        }
+                }
 
             for (int i = 0; i < myThreads.Length; i++)          //run through the arrary of threads
             {
-
                 int numThreads = myThreads[i];                  //get value of threads
 
                 Thread[] threads = new Thread[numThreads];        //creating an array of thread objects
@@ -71,8 +66,6 @@ internal class BenchmarkClass
                     threads[j] = new Thread(() =>                       //creating the thread
                     {
                         double operations = GetTime(useOperation);      //send operation to gettime method
-
-
                         opCount += operations;                        //record the total number of operations completed from all threads 
                         StoreRawData(rawData, operation, numThreads, threadIDNum, operations);//gettign the raw data for each individual thread 
                     });
@@ -84,12 +77,13 @@ internal class BenchmarkClass
                 {   
                     thread.Join();
                 }
+
                 Console.WriteLine($"Testing {operation} using {numThreads} threads has completed!");
                 
                 testingResults[i] = opCount;            //add the results to the results arrary 
 
             }
-            sendRawDatasToFile(rawData);//storing raw data to file 
+            //sendRawDatasToFile(rawData);//storing raw data to file 
             return testingResults;              //return the results.
 
 
@@ -101,7 +95,6 @@ internal class BenchmarkClass
     {
         int numOps = 0;                             //recording number of operations completed. 
 
-
         Stopwatch sw = Stopwatch.StartNew();        //using stopwatch to keep track of time 
 
         sw.Start();
@@ -112,12 +105,12 @@ internal class BenchmarkClass
             if (sw.ElapsedMilliseconds >= setTime)  //when time has passed the set duration end 
             {
                 sw.Stop();
+                
                 break;
             }
         }
 
-
-        double results = (double)numOps / setTime; //geting the number of operations per second
+        double results = (double)numOps / (setTime/1000); //geting the number of operations per second by dividing the total number of operations completed by 30 seconds 
 
         return results;                            //return results 
 
@@ -129,16 +122,13 @@ internal class BenchmarkClass
         int cols = results.GetLength(1);
         double[] avgs = new double[cols]; //average of each column 
 
-
         for (int i = 0; i < cols; i++)
         {
             double sum = 0;
             double[] colValues = new double[cols];
             for (int j = 0; j < rows; j++)
             {
-
                 sum += results[j, i];
-
                 colValues[j] = results[j, i];
             }
             avgs[i] = (colValues.Average());
@@ -152,7 +142,6 @@ internal class BenchmarkClass
         int rows = results.GetLength(0);
         int cols = results.GetLength(1);
         double[] stdDev = new double[cols]; //array to hold standard deviation for each col
-
 
         for (int i = 0; i < cols; i++)          //for each col in each row get standard divation 
         {
@@ -182,19 +171,17 @@ internal class BenchmarkClass
             {
                 Console.WriteLine($"{filePath} already exists in {Environment.CurrentDirectory}, attempting to add new test results txt file");
                 testNum++;
-
-            }
+                            }
 
             else
             {
-
                 using StreamWriter writefile = new(filePath);
                 foreach (ResultsData data in mylist)
-                {
-                    string value = $"Date: {data.DateRan}  Operation: {data.Operations}  Thread Count: {data.ThreadCount}  Average: {data.Average}  Standard Deviation: {data.StandardDeviation}  '\n'";
-                    writefile.WriteLine(value);
+                    {
+                        string value = $"Date: {data.DateRan}  Operation: {data.Operations}  Thread Count: {data.ThreadCount}  Average: {data.Average}  Standard Deviation: {data.StandardDeviation}  '\n'";
+                        writefile.WriteLine(value);
 
-                }
+                    }
                 Console.WriteLine($"Results sent to file: {filePath} in {Environment.CurrentDirectory}");
                 createdFile = true;
                 break;
@@ -228,33 +215,28 @@ internal class BenchmarkClass
         int[] threads = { 1, 2, 4, 8 };
         for (int i = 0; i < threads.Length; i++)
         {
-            
-                ResultsData result = new() { DateRan = dateRan, Operations = testType, ThreadCount = threads[i], Average = avg[i], StandardDeviation = std[i] };
-                myList.Add(result);
+          ResultsData result = new() { DateRan = dateRan, Operations = testType, ThreadCount = threads[i], Average = avg[i], StandardDeviation = std[i] };
+          myList.Add(result);
             
         }
     }
 
     private static void StoreRawData(List<RawData> myList, string testType, int thread, int threadID, double operationCount)
-    {
+        {
 
         RawData result = new() { Operations = testType, ThreadCount = thread,threadIDNumber=threadID, OpertionCount = operationCount };
         myList.Add(result);
 
-    }
+        }
 
     private static void openResultsFile(string filePath )
-    {
-        
-            try
-            {   
-                Process.Start("notepad.exe",filePath);
+    {       
+        try {   Process.Start("notepad.exe",filePath); }
 
-                }
-            catch ( Exception e){
-                Console.WriteLine($"Error occured while trying to open {filePath} reference Error Message: {e.Message} ");
+        catch ( Exception e){
+            Console.WriteLine($"Error occured while trying to open {filePath} reference Error Message: {e.Message} ");
             }
-            }
+        }
         
     
 
@@ -263,8 +245,8 @@ internal class BenchmarkClass
         DateTime runTimeofTest = DateTime.Now;
         string dateRan = runTimeofTest.ToString("MM_dd_yyyy_HH_mm");
         List<ResultsData> results = new();
-
-
+        string workingDirectory = Environment.CurrentDirectory;
+        Console.WriteLine(workingDirectory);
         double[,] resultsF = new double[3, 4];
         double[,] resultsI = new double[3, 4];
 
@@ -275,8 +257,8 @@ internal class BenchmarkClass
             double[] iops = UseThreads("IOPS");
             for (int j = 0; j < 4; j++)
             {
-                resultsF[i, j] = flops[j];
-                resultsI[i, j] = iops[j];
+                resultsF[i, j] = flops[j]/1_000_000_000;//converting the results to gigaFLOPS
+                resultsI[i, j] = iops[j] / 1_000_000_000; //converting the results to gigaIOPS
             }
         }
 
@@ -290,8 +272,9 @@ internal class BenchmarkClass
         StoreData(results, "FLOPS", flopsAvgs, flopsStdDev, dateRan);
         StoreData(results, "Iops", iopsAvgs, iopsStdDev, dateRan);
 
+        
         string filePath = sendResultsToFile(results);
-        //openResultsFile(filePath);
+        //
 
     }
 }
